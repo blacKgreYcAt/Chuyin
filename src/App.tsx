@@ -15,6 +15,7 @@ export default function App() {
     currentLessonIndex: 0,
     completedLessons: [],
     mistakeCounts: {},
+    isEyeCareMode: false,
   });
 
   const handleGenderSelect = (gender: Gender) => {
@@ -50,6 +51,10 @@ export default function App() {
 
   const handleBackToHome = () => {
     setAppState('dashboard');
+  };
+
+  const handleToggleEyeCare = () => {
+    setProgress(prev => ({ ...prev, isEyeCareMode: !prev.isEyeCareMode }));
   };
 
   const handleRewardContinue = () => {
@@ -98,7 +103,11 @@ export default function App() {
   return (
     <div className="w-full min-h-screen overflow-hidden font-sans">
       {appState === 'selection' && (
-        <GenderSelection onSelect={handleGenderSelect} />
+        <GenderSelection 
+          onSelect={handleGenderSelect} 
+          isEyeCareMode={!!progress.isEyeCareMode}
+          onToggleEyeCare={handleToggleEyeCare}
+        />
       )}
       
       {appState === 'dashboard' && progress.gender && (
@@ -109,6 +118,8 @@ export default function App() {
           onSelectLesson={handleSelectLesson}
           hasMistakes={Object.keys(progress.mistakeCounts || {}).length > 0}
           onReview={handleReview}
+          isEyeCareMode={!!progress.isEyeCareMode}
+          onToggleEyeCare={handleToggleEyeCare}
         />
       )}
 
@@ -118,6 +129,7 @@ export default function App() {
           currentLessonIndex={progress.currentLessonIndex}
           onNext={handleLearningNext}
           onBackToHome={handleBackToHome}
+          isEyeCareMode={!!progress.isEyeCareMode}
         />
       )}
 
@@ -128,6 +140,7 @@ export default function App() {
           onCorrect={handleQuizCorrect}
           onMistake={handleMistake}
           onBackToHome={handleBackToHome}
+          isEyeCareMode={!!progress.isEyeCareMode}
         />
       )}
 
@@ -135,6 +148,7 @@ export default function App() {
         <Reward
           gender={progress.gender}
           onContinue={handleRewardContinue}
+          isEyeCareMode={!!progress.isEyeCareMode}
         />
       )}
     </div>

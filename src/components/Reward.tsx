@@ -6,10 +6,11 @@ import { Medal, ArrowRight } from 'lucide-react';
 
 interface Props {
   gender: Gender;
+  isEyeCareMode: boolean;
   onContinue: () => void;
 }
 
-export default function Reward({ gender, onContinue }: Props) {
+export default function Reward({ gender, isEyeCareMode, onContinue }: Props) {
   const isGirl = gender === 'girl';
 
   useEffect(() => {
@@ -42,45 +43,51 @@ export default function Reward({ gender, onContinue }: Props) {
     return () => clearInterval(interval);
   }, [isGirl]);
 
-  const themeClasses = isGirl 
-    ? 'bg-gradient-to-b from-[#1a1a1a] via-[#3b2e5a] to-[#d8a7d4] text-white'
-    : 'bg-gradient-to-b from-blue-900 via-blue-800 to-cyan-900 text-blue-100';
+  const themeClasses = isEyeCareMode
+    ? 'bg-[#121212] text-[#E0E0E0]'
+    : isGirl 
+      ? 'bg-gradient-to-b from-[#1a1a1a] via-[#3b2e5a] to-[#d8a7d4] text-white'
+      : 'bg-gradient-to-b from-blue-900 via-blue-800 to-cyan-900 text-blue-100';
 
-  const cardClasses = isGirl
-    ? 'bg-[#3b2e5a]/80 border-[#d8a7d4]/50'
-    : 'bg-blue-800/80 border-cyan-500/50';
+  const cardClasses = isEyeCareMode
+    ? 'bg-[#1E1E1E] border-[#333333]'
+    : isGirl
+      ? 'bg-[#3b2e5a]/80 border-[#d8a7d4]/50'
+      : 'bg-blue-800/80 border-cyan-500/50';
 
-  const buttonClasses = isGirl
-    ? 'bg-gradient-to-r from-[#d8a7d4] to-[#ffb7e6] hover:from-[#c796c3] hover:to-[#e5a4cf] text-[#1a1a1a] shadow-[#d8a7d4]/50'
-    : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-cyan-500/50';
+  const buttonClasses = isEyeCareMode
+    ? 'bg-[#2C2C2C] hover:bg-[#3C3C3C] border border-[#444444] text-[#E0E0E0]'
+    : isGirl
+      ? 'bg-gradient-to-r from-[#d8a7d4] to-[#ffb7e6] hover:from-[#c796c3] hover:to-[#e5a4cf] text-[#1a1a1a] shadow-[#d8a7d4]/50'
+      : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-cyan-500/50';
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${themeClasses}`}>
+    <div className={`min-h-screen flex flex-col items-center justify-center p-4 md:p-6 ${themeClasses}`}>
       <motion.div 
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
         transition={{ type: 'spring', damping: 12, stiffness: 100 }}
-        className={`w-full max-w-md rounded-3xl border-4 p-12 text-center shadow-2xl backdrop-blur-md flex flex-col items-center ${cardClasses}`}
+        className={`w-full max-w-md rounded-3xl border-4 p-8 md:p-12 text-center shadow-2xl backdrop-blur-md flex flex-col items-center ${cardClasses}`}
       >
         <motion.div
           animate={{ y: [-10, 10, -10] }}
           transition={{ repeat: Infinity, duration: 2 }}
-          className="mb-8"
+          className="mb-6 md:mb-8"
         >
-          <Medal size={120} className={isGirl ? "text-pink-400" : "text-yellow-400"} />
+          <Medal size={100} className={`md:w-[120px] md:h-[120px] ${isGirl ? "text-pink-400" : "text-yellow-400"}`} />
         </motion.div>
 
-        <h2 className="text-4xl font-black mb-4 text-yellow-300 drop-shadow-md">答對了！</h2>
-        <p className="text-2xl mb-12 font-bold">獲得一枚獎章！</p>
+        <h2 className="text-3xl md:text-4xl font-black mb-4 text-yellow-300 drop-shadow-md">答對了！</h2>
+        <p className="text-xl md:text-2xl mb-8 md:mb-12 font-bold">獲得一枚獎章！</p>
 
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onContinue}
-          className={`w-full py-4 rounded-2xl text-2xl font-bold flex items-center justify-center gap-3 shadow-lg ${buttonClasses}`}
+          className={`w-full py-3 md:py-4 rounded-2xl text-xl md:text-2xl font-bold flex items-center justify-center gap-3 shadow-lg ${buttonClasses}`}
         >
           繼續學習
-          <ArrowRight size={28} />
+          <ArrowRight size={24} className="md:w-7 md:h-7" />
         </motion.button>
       </motion.div>
     </div>

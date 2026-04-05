@@ -7,4 +7,5 @@ export interface UserProgress {
   currentLessonIndex: number;
   completedLessons: number[];
   mistakeCounts?: Record<number, number>;
+  isEyeCareMode?: boolean;
 }
