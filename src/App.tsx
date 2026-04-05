@@ -14,7 +14,6 @@ export default function App() {
     medals: 0,
     currentLessonIndex: 0,
     completedLessons: [],
-    useAIVoice: false,
   });
 
   const handleGenderSelect = (gender: Gender) => {
@@ -33,10 +32,6 @@ export default function App() {
 
   const handleQuizCorrect = () => {
     setAppState('reward');
-  };
-
-  const handleToggleVoice = () => {
-    setProgress(prev => ({ ...prev, useAIVoice: !prev.useAIVoice }));
   };
 
   const handleRewardContinue = () => {
@@ -83,8 +78,6 @@ export default function App() {
         <Learning
           gender={progress.gender}
           currentLessonIndex={progress.currentLessonIndex}
-          useAIVoice={progress.useAIVoice}
-          onToggleVoice={handleToggleVoice}
           onNext={handleLearningNext}
         />
       )}

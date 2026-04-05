@@ -2,21 +2,20 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
-import { ArrowRight, Volume2, Loader2, Sparkles, Music } from 'lucide-react';
+import { ArrowRight, Volume2, Loader2 } from 'lucide-react';
 import { playMdnAudio } from '../services/mdnAudio';
 
 interface Props {
   gender: Gender;
   currentLessonIndex: number;
-  useAIVoice: boolean;
-  onToggleVoice: () => void;
   onNext: () => void;
 }
 
-export default function Learning({ gender, currentLessonIndex, useAIVoice, onToggleVoice, onNext }: Props) {
+export default function Learning({ gender, currentLessonIndex, onNext }: Props) {
   const isGirl = gender === 'girl';
   const item = bopomofoData[currentLessonIndex];
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSpeakingSymbol, setIsSpeakingSymbol] = useState(false);
+  const [isSpeakingWord, setIsSpeakingWord] = useState(false);
   
   const themeClasses = isGirl 
     ? 'bg-gradient-to-b from-[#1a1a1a] via-[#3b2e5a] to-[#d8a7d4] text-white'
@@ -30,69 +29,59 @@ export default function Learning({ gender, currentLessonIndex, useAIVoice, onTog
     ? 'bg-gradient-to-r from-[#d8a7d4] to-[#ffb7e6] hover:from-[#c796c3] hover:to-[#e5a4cf] text-[#1a1a1a] shadow-[#d8a7d4]/50'
     : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-cyan-500/50';
 
-  const playSound = async () => {
-    if (isSpeaking) return;
-    setIsSpeaking(true);
+  const playSymbolSound = async () => {
+    if (isSpeakingSymbol || isSpeakingWord) return;
+    setIsSpeakingSymbol(true);
 
     try {
-      if (useAIVoice) {
-        // Fallback to Web Speech API if AI Voice is selected (since we removed the API key requirement)
-        window.speechSynthesis.cancel();
-        const text = `${item.ttsHint}，${item.word}`;
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = 'zh-TW';
-        utterance.rate = 0.85;
-        
-        const voices = window.speechSynthesis.getVoices();
-        const bestVoice = voices.find(v => 
-          v.lang.includes('zh-TW') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Mei-Jia'))
-        ) || voices.find(v => v.lang.includes('zh-TW')) || voices.find(v => v.lang.includes('zh'));
-        
-        if (bestVoice) {
-          utterance.voice = bestVoice;
-        }
-        
-        utterance.onend = () => setIsSpeaking(false);
-        utterance.onerror = () => setIsSpeaking(false);
-        
-        window.speechSynthesis.speak(utterance);
-      } else {
-        // Use MDN Audio
-        await playMdnAudio(currentLessonIndex);
-        setIsSpeaking(false);
-      }
+      await playMdnAudio(currentLessonIndex);
     } catch (e) {
       console.error(e);
-      setIsSpeaking(false);
+    } finally {
+      setIsSpeakingSymbol(false);
     }
   };
 
-  // Auto-play sound when entering the lesson or toggling voice
+  const playWordSound = () => {
+    if (isSpeakingSymbol || isSpeakingWord) return;
+    setIsSpeakingWord(true);
+
+    try {
+      window.speechSynthesis.cancel();
+      const text = `${item.word}`;
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'zh-TW';
+      utterance.rate = 0.85;
+      
+      const voices = window.speechSynthesis.getVoices();
+      const bestVoice = voices.find(v => 
+        v.lang.includes('zh-TW') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Mei-Jia'))
+      ) || voices.find(v => v.lang.includes('zh-TW')) || voices.find(v => v.lang.includes('zh'));
+      
+      if (bestVoice) {
+        utterance.voice = bestVoice;
+      }
+      
+      utterance.onend = () => setIsSpeakingWord(false);
+      utterance.onerror = () => setIsSpeakingWord(false);
+      
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.error(e);
+      setIsSpeakingWord(false);
+    }
+  };
+
+  // Auto-play symbol sound when entering the lesson
   useEffect(() => {
-    playSound();
+    playSymbolSound();
     return () => {
       window.speechSynthesis.cancel();
     };
-  }, [item, useAIVoice]);
+  }, [item]);
 
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative ${themeClasses}`}>
-      
-      {/* Voice Toggle Button */}
-      <div className="absolute top-6 right-6 z-10">
-        <button
-          onClick={onToggleVoice}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors ${
-            useAIVoice 
-              ? 'bg-yellow-400 text-yellow-900 shadow-lg shadow-yellow-400/50' 
-              : 'bg-green-500 text-white shadow-lg shadow-green-500/50'
-          }`}
-        >
-          {useAIVoice ? <Sparkles size={16} /> : <Music size={16} />}
-          {useAIVoice ? '系統合成語音' : '國語日報標準發音 (內建)'}
-        </button>
-      </div>
-
       <motion.div 
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -109,19 +98,28 @@ export default function Learning({ gender, currentLessonIndex, useAIVoice, onTog
             {item.symbol}
           </motion.div>
           <button 
-            onClick={playSound}
-            disabled={isSpeaking}
-            className={`absolute -right-4 -bottom-4 p-4 rounded-full ${buttonClasses} ${isSpeaking ? 'opacity-70 cursor-not-allowed' : ''}`}
+            onClick={playSymbolSound}
+            disabled={isSpeakingSymbol || isSpeakingWord}
+            className={`absolute -right-4 -bottom-4 p-4 rounded-full ${buttonClasses} ${(isSpeakingSymbol || isSpeakingWord) ? 'opacity-70 cursor-not-allowed' : ''}`}
+            title="聽注音發音"
           >
-            {isSpeaking ? <Loader2 size={32} className="animate-spin" /> : <Volume2 size={32} />}
+            {isSpeakingSymbol ? <Loader2 size={32} className="animate-spin" /> : <Volume2 size={32} />}
           </button>
         </div>
 
-        <div className="flex items-center gap-6 mb-12 bg-black/20 px-8 py-4 rounded-2xl">
+        <div className="flex items-center gap-6 mb-12 bg-black/20 px-8 py-4 rounded-2xl relative w-full">
           <span className="text-6xl">{item.emoji}</span>
-          <div className="text-left">
+          <div className="text-left flex-1">
             <div className="text-4xl font-bold tracking-widest">{item.word}</div>
           </div>
+          <button 
+            onClick={playWordSound}
+            disabled={isSpeakingSymbol || isSpeakingWord}
+            className={`p-3 rounded-full ${buttonClasses} ${(isSpeakingSymbol || isSpeakingWord) ? 'opacity-70 cursor-not-allowed' : ''}`}
+            title="聽例詞發音"
+          >
+            {isSpeakingWord ? <Loader2 size={24} className="animate-spin" /> : <Volume2 size={24} />}
+          </button>
         </div>
 
         <motion.button
