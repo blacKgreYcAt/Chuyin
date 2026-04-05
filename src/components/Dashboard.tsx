@@ -17,7 +17,8 @@ export default function Dashboard({ gender, medals, completedLessons, onSelectLe
   const [downloadProgress, setDownloadProgress] = useState<{current: number, total: number} | null>(null);
   const [downloadedCount, setDownloadedCount] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
   
   useEffect(() => {
     getDownloadedVoiceCount().then(setDownloadedCount);
@@ -26,18 +27,26 @@ export default function Dashboard({ gender, medals, completedLessons, onSelectLe
   const handleDownloadVoices = async () => {
     if (isDownloading) return;
     setIsDownloading(true);
-    setDownloadError(false);
+    setDownloadError(null);
+    setIsRetrying(false);
     try {
-      await downloadAllVoices((current, total) => {
-        setDownloadProgress({ current, total });
-        setDownloadedCount(current);
-      });
-    } catch (e) {
+      await downloadAllVoices(
+        (current, total) => {
+          setDownloadProgress({ current, total });
+          setDownloadedCount(current);
+          setIsRetrying(false);
+        },
+        () => {
+          setIsRetrying(true);
+        }
+      );
+    } catch (e: any) {
       console.error(e);
-      setDownloadError(true);
+      setDownloadError(e.message || String(e));
     } finally {
       setIsDownloading(false);
       setDownloadProgress(null);
+      setIsRetrying(false);
     }
   };
 
@@ -93,7 +102,10 @@ export default function Dashboard({ gender, medals, completedLessons, onSelectLe
             ) : (
               <>
                 <div className="flex flex-col">
-                  <span className="text-sm font-bold">AI 語音包 ({downloadedCount}/{totalVoices})</span>
+                  <span className="text-sm font-bold">
+                    AI 語音包 ({downloadedCount}/{totalVoices})
+                    {isRetrying && <span className="text-yellow-400 ml-2 text-xs">等待重試中...</span>}
+                  </span>
                   {downloadProgress && (
                     <div className="w-full bg-black/30 h-2 rounded-full mt-1 overflow-hidden">
                       <div 
@@ -102,7 +114,7 @@ export default function Dashboard({ gender, medals, completedLessons, onSelectLe
                       />
                     </div>
                   )}
-                  {downloadError && <span className="text-xs text-red-400 mt-1">下載失敗，請重試</span>}
+                  {downloadError && <span className="text-xs text-red-400 mt-1 break-all max-w-[200px]">下載失敗: {downloadError}</span>}
                 </div>
                 <button
                   onClick={handleDownloadVoices}

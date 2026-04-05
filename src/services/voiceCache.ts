@@ -8,32 +8,47 @@ let audioCtx: AudioContext | null = null;
 const DB_NAME = 'BopomofoVoiceDB';
 const STORE_NAME = 'voices';
 
+// Fallback memory cache if IndexedDB is blocked (e.g., in incognito or strict iframe)
+const memoryCache = new Map<string, string>();
+
 function getDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    request.onupgradeneeded = () => {
-      request.result.createObjectStore(STORE_NAME);
-    };
+    try {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore(STORE_NAME);
+      };
+    } catch (e) {
+      reject(e);
+    }
   });
 }
 
 async function saveToCache(key: string, data: string): Promise<void> {
-  const db = await getDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
-    const request = store.put(data, key);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  });
+  try {
+    const db = await getDB();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put(data, key);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.warn("IndexedDB save failed, falling back to memory cache", e);
+    memoryCache.set(key, data);
+  }
 }
 
 export async function getCachedAudio(key: string): Promise<string | null> {
+  if (memoryCache.has(key)) {
+    return memoryCache.get(key) || null;
+  }
   try {
     const db = await getDB();
-    return new Promise((resolve, reject) => {
+    return await new Promise<string | null>((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, 'readonly');
       const store = tx.objectStore(STORE_NAME);
       const request = store.get(key);
@@ -41,7 +56,7 @@ export async function getCachedAudio(key: string): Promise<string | null> {
       request.onerror = () => reject(request.error);
     });
   } catch (e) {
-    console.error("IndexedDB error", e);
+    console.warn("IndexedDB read failed", e);
     return null;
   }
 }
@@ -114,7 +129,10 @@ export async function playBase64Audio(base64Audio: string): Promise<void> {
   });
 }
 
-export async function downloadAllVoices(onProgress: (current: number, total: number) => void): Promise<void> {
+export async function downloadAllVoices(
+  onProgress: (current: number, total: number) => void,
+  onRetry?: () => void
+): Promise<void> {
   const total = bopomofoData.length;
   let current = await getDownloadedVoiceCount();
   onProgress(current, total);
@@ -131,15 +149,17 @@ export async function downloadAllVoices(onProgress: (current: number, total: num
           await fetchAndCacheAudio(text, cacheKey);
           current++;
           onProgress(current, total);
-          // Wait 4.2 seconds between requests to respect the 15 RPM free tier limit
-          await new Promise(resolve => setTimeout(resolve, 4200));
+          // Wait 5 seconds between requests to respect the 15 RPM free tier limit
+          await new Promise(resolve => setTimeout(resolve, 5000));
           break;
         } catch (error: any) {
           console.error(`Failed to fetch audio for ${item.symbol}:`, error);
           retries--;
           if (retries === 0) throw error;
-          // If rate limited or error, wait 10 seconds before retrying
-          await new Promise(resolve => setTimeout(resolve, 10000));
+          
+          if (onRetry) onRetry();
+          // If rate limited or error, wait 30 seconds before retrying
+          await new Promise(resolve => setTimeout(resolve, 30000));
         }
       }
     }
@@ -154,4 +174,5 @@ export async function getDownloadedVoiceCount(): Promise<number> {
   }
   return count;
 }
+
 
