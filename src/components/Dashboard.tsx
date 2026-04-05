@@ -20,7 +20,7 @@ export default function Dashboard({ gender, medals, completedLessons, onSelectLe
   const [downloadError, setDownloadError] = useState(false);
   
   useEffect(() => {
-    setDownloadedCount(getDownloadedVoiceCount());
+    getDownloadedVoiceCount().then(setDownloadedCount);
   }, []);
 
   const handleDownloadVoices = async () => {
