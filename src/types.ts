@@ -5,4 +5,5 @@ export interface UserProgress {
   gender: Gender | null;
   medals: number;
   currentLessonIndex: number;
+  completedLessons: number[];
 }

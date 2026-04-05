@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AppState, Gender, UserProgress } from './types';
+import { bopomofoData } from './data/bopomofo';
 import GenderSelection from './components/GenderSelection';
 import Dashboard from './components/Dashboard';
 import Learning from './components/Learning';
@@ -12,6 +13,7 @@ export default function App() {
     gender: null,
     medals: 0,
     currentLessonIndex: 0,
+    completedLessons: [],
   });
 
   const handleGenderSelect = (gender: Gender) => {
@@ -19,7 +21,8 @@ export default function App() {
     setAppState('dashboard');
   };
 
-  const handleStartLearning = () => {
+  const handleSelectLesson = (index: number) => {
+    setProgress(prev => ({ ...prev, currentLessonIndex: index }));
     setAppState('learning');
   };
 
@@ -32,11 +35,27 @@ export default function App() {
   };
 
   const handleRewardContinue = () => {
-    setProgress(prev => ({
-      ...prev,
-      medals: prev.medals + 1,
-      currentLessonIndex: prev.currentLessonIndex + 1,
-    }));
+    setProgress(prev => {
+      const newCompleted = prev.completedLessons.includes(prev.currentLessonIndex)
+        ? prev.completedLessons
+        : [...prev.completedLessons, prev.currentLessonIndex];
+
+      // Find next uncompleted lesson
+      let nextLesson = 0;
+      for (let i = 0; i < bopomofoData.length; i++) {
+        if (!newCompleted.includes(i)) {
+          nextLesson = i;
+          break;
+        }
+      }
+
+      return {
+        ...prev,
+        medals: prev.medals + 1,
+        completedLessons: newCompleted,
+        currentLessonIndex: nextLesson,
+      };
+    });
     setAppState('dashboard');
   };
 
@@ -50,8 +69,8 @@ export default function App() {
         <Dashboard 
           gender={progress.gender}
           medals={progress.medals}
-          currentLessonIndex={progress.currentLessonIndex}
-          onStartLearning={handleStartLearning}
+          completedLessons={progress.completedLessons}
+          onSelectLesson={handleSelectLesson}
         />
       )}
 

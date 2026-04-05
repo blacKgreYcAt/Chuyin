@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
@@ -26,13 +27,31 @@ export default function Learning({ gender, currentLessonIndex, onNext }: Props) 
     : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-cyan-500/50';
 
   const playSound = () => {
-    // In a real app, we would play an audio file here.
-    // For now, we'll just use speech synthesis as a fallback.
-    const utterance = new SpeechSynthesisUtterance(item.word);
-    utterance.lang = 'zh-TW';
-    utterance.rate = 0.8;
-    window.speechSynthesis.speak(utterance);
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+
+    // 1. Pronounce the Bopomofo symbol first
+    const symbolUtterance = new SpeechSynthesisUtterance(item.symbol);
+    symbolUtterance.lang = 'zh-TW';
+    symbolUtterance.rate = 0.7; // Slightly slower for clarity
+
+    // 2. Pronounce the example word
+    const wordUtterance = new SpeechSynthesisUtterance(item.word);
+    wordUtterance.lang = 'zh-TW';
+    wordUtterance.rate = 0.8;
+
+    // Queue the utterances
+    window.speechSynthesis.speak(symbolUtterance);
+    window.speechSynthesis.speak(wordUtterance);
   };
+
+  // Auto-play sound when entering the lesson
+  useEffect(() => {
+    playSound();
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, [item]);
 
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${themeClasses}`}>
