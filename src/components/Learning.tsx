@@ -1,18 +1,22 @@
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
-import { ArrowRight, Volume2 } from 'lucide-react';
+import { ArrowRight, Volume2, Loader2, Sparkles } from 'lucide-react';
+import { playGeminiTTS } from '../services/tts';
 
 interface Props {
   gender: Gender;
   currentLessonIndex: number;
+  useAIVoice: boolean;
+  onToggleVoice: () => void;
   onNext: () => void;
 }
 
-export default function Learning({ gender, currentLessonIndex, onNext }: Props) {
+export default function Learning({ gender, currentLessonIndex, useAIVoice, onToggleVoice, onNext }: Props) {
   const isGirl = gender === 'girl';
   const item = bopomofoData[currentLessonIndex];
+  const [isSpeaking, setIsSpeaking] = useState(false);
   
   const themeClasses = isGirl 
     ? 'bg-gradient-to-b from-[#1a1a1a] via-[#3b2e5a] to-[#d8a7d4] text-white'
@@ -26,30 +30,58 @@ export default function Learning({ gender, currentLessonIndex, onNext }: Props) 
     ? 'bg-gradient-to-r from-[#d8a7d4] to-[#ffb7e6] hover:from-[#c796c3] hover:to-[#e5a4cf] text-[#1a1a1a] shadow-[#d8a7d4]/50'
     : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white shadow-cyan-500/50';
 
-  const playSound = () => {
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
+  const playSound = async () => {
+    if (isSpeaking) return;
+    setIsSpeaking(true);
 
-    // Use the ttsHint (a standard Chinese character with the exact same pronunciation)
-    // combined with the word, separated by a comma for a natural pause.
-    const text = `${item.ttsHint}，${item.word}`;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'zh-TW';
-    utterance.rate = 0.85; // slightly adjusted for natural flow
-
-    window.speechSynthesis.speak(utterance);
+    try {
+      if (useAIVoice) {
+        await playGeminiTTS(`${item.ttsHint}，${item.word}`);
+        setIsSpeaking(false);
+      } else {
+        window.speechSynthesis.cancel();
+        const text = `${item.ttsHint}，${item.word}`;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'zh-TW';
+        utterance.rate = 0.85;
+        
+        utterance.onend = () => setIsSpeaking(false);
+        utterance.onerror = () => setIsSpeaking(false);
+        
+        window.speechSynthesis.speak(utterance);
+      }
+    } catch (e) {
+      console.error(e);
+      setIsSpeaking(false);
+    }
   };
 
-  // Auto-play sound when entering the lesson
+  // Auto-play sound when entering the lesson or toggling voice
   useEffect(() => {
     playSound();
     return () => {
       window.speechSynthesis.cancel();
     };
-  }, [item]);
+  }, [item, useAIVoice]);
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${themeClasses}`}>
+    <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative ${themeClasses}`}>
+      
+      {/* Voice Toggle Button */}
+      <div className="absolute top-6 right-6 z-10">
+        <button
+          onClick={onToggleVoice}
+          className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors ${
+            useAIVoice 
+              ? 'bg-yellow-400 text-yellow-900 shadow-lg shadow-yellow-400/50' 
+              : 'bg-black/30 text-white/80 hover:bg-black/40'
+          }`}
+        >
+          <Sparkles size={16} />
+          {useAIVoice ? 'AI 真人語音 (已開啟)' : 'AI 真人語音 (已關閉)'}
+        </button>
+      </div>
+
       <motion.div 
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -67,9 +99,10 @@ export default function Learning({ gender, currentLessonIndex, onNext }: Props) 
           </motion.div>
           <button 
             onClick={playSound}
-            className={`absolute -right-4 -bottom-4 p-4 rounded-full ${buttonClasses}`}
+            disabled={isSpeaking}
+            className={`absolute -right-4 -bottom-4 p-4 rounded-full ${buttonClasses} ${isSpeaking ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            <Volume2 size={32} />
+            {isSpeaking ? <Loader2 size={32} className="animate-spin" /> : <Volume2 size={32} />}
           </button>
         </div>
 
