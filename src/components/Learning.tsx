@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
 import { ArrowRight, Volume2, Loader2, Sparkles } from 'lucide-react';
-import { playGeminiTTS } from '../services/tts';
+import { getCachedAudio, fetchAndCacheAudio, playBase64Audio } from '../services/voiceCache';
 
 interface Props {
   gender: Gender;
@@ -36,7 +36,16 @@ export default function Learning({ gender, currentLessonIndex, useAIVoice, onTog
 
     try {
       if (useAIVoice) {
-        await playGeminiTTS(`${item.ttsHint}，${item.word}`);
+        const text = `${item.ttsHint}，${item.word}`;
+        const cacheKey = item.symbol;
+        
+        let base64Audio = getCachedAudio(cacheKey);
+        if (!base64Audio) {
+          // Fetch on demand if not cached
+          base64Audio = await fetchAndCacheAudio(text, cacheKey);
+        }
+        
+        await playBase64Audio(base64Audio);
         setIsSpeaking(false);
       } else {
         window.speechSynthesis.cancel();
