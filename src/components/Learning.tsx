@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
-import { ArrowRight, Volume2, Loader2, Sparkles } from 'lucide-react';
-import { getCachedAudio, fetchAndCacheAudio, playBase64Audio } from '../services/voiceCache';
+import { ArrowRight, Volume2, Loader2, Sparkles, Music } from 'lucide-react';
+import { playMdnAudio } from '../services/mdnAudio';
 
 interface Props {
   gender: Gender;
@@ -36,28 +36,30 @@ export default function Learning({ gender, currentLessonIndex, useAIVoice, onTog
 
     try {
       if (useAIVoice) {
-        const text = `${item.ttsHint}，${item.word}`;
-        const cacheKey = item.symbol;
-        
-        let base64Audio = getCachedAudio(cacheKey);
-        if (!base64Audio) {
-          // Fetch on demand if not cached
-          base64Audio = await fetchAndCacheAudio(text, cacheKey);
-        }
-        
-        await playBase64Audio(base64Audio);
-        setIsSpeaking(false);
-      } else {
+        // Fallback to Web Speech API if AI Voice is selected (since we removed the API key requirement)
         window.speechSynthesis.cancel();
         const text = `${item.ttsHint}，${item.word}`;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'zh-TW';
         utterance.rate = 0.85;
         
+        const voices = window.speechSynthesis.getVoices();
+        const bestVoice = voices.find(v => 
+          v.lang.includes('zh-TW') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Mei-Jia'))
+        ) || voices.find(v => v.lang.includes('zh-TW')) || voices.find(v => v.lang.includes('zh'));
+        
+        if (bestVoice) {
+          utterance.voice = bestVoice;
+        }
+        
         utterance.onend = () => setIsSpeaking(false);
         utterance.onerror = () => setIsSpeaking(false);
         
         window.speechSynthesis.speak(utterance);
+      } else {
+        // Use MDN Audio
+        await playMdnAudio(currentLessonIndex);
+        setIsSpeaking(false);
       }
     } catch (e) {
       console.error(e);
@@ -83,11 +85,11 @@ export default function Learning({ gender, currentLessonIndex, useAIVoice, onTog
           className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-colors ${
             useAIVoice 
               ? 'bg-yellow-400 text-yellow-900 shadow-lg shadow-yellow-400/50' 
-              : 'bg-black/30 text-white/80 hover:bg-black/40'
+              : 'bg-green-500 text-white shadow-lg shadow-green-500/50'
           }`}
         >
-          <Sparkles size={16} />
-          {useAIVoice ? 'AI 真人語音 (已開啟)' : 'AI 真人語音 (已關閉)'}
+          {useAIVoice ? <Sparkles size={16} /> : <Music size={16} />}
+          {useAIVoice ? '系統合成語音' : '國語日報標準發音 (內建)'}
         </button>
       </div>
 

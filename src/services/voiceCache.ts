@@ -87,7 +87,7 @@ export async function fetchAndCacheAudio(text: string, cacheKey: string): Promis
   try {
     const response = await ai!.models.generateContent({
       model: "gemini-2.5-flash-preview-tts",
-      contents: [{ parts: [{ text: `請用幼稚園老師親切、開心的語氣慢慢唸：${text}` }] }],
+      contents: [{ parts: [{ text: `Speak in Traditional Chinese: ${text}` }] }],
       config: {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
@@ -98,8 +98,20 @@ export async function fetchAndCacheAudio(text: string, cacheKey: string): Promis
       },
     });
 
-    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-    if (!base64Audio) throw new Error("No audio generated");
+    const candidate = response.candidates?.[0];
+    if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
+      throw new Error(`生成被中斷 (原因: ${candidate.finishReason})`);
+    }
+
+    const base64Audio = candidate?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) {
+      const textFallback = candidate?.content?.parts?.[0]?.text;
+      console.error("Full API Response:", JSON.stringify(response));
+      if (textFallback) {
+        throw new Error(`API 回傳了文字而非語音: ${textFallback.substring(0, 20)}...`);
+      }
+      throw new Error("No audio generated. Please check console for details.");
+    }
 
     await saveToCache(cacheKey, base64Audio);
     
