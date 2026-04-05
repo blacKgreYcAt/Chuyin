@@ -1,11 +1,12 @@
 import { GoogleGenAI, Modality } from '@google/genai';
+import { getCustomApiKey } from './voiceCache';
 
 let ai: GoogleGenAI | null = null;
 let audioCtx: AudioContext | null = null;
 
 export async function playGeminiTTS(text: string): Promise<void> {
   if (!ai) {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = getCustomApiKey() || process.env.GEMINI_API_KEY || process.env.API_KEY;
     if (!apiKey) {
       console.warn("No Gemini API key found");
       return;

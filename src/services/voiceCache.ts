@@ -61,22 +61,20 @@ export async function getCachedAudio(key: string): Promise<string | null> {
   }
 }
 
-export async function initAI() {
-  let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-  
-  // If we have access to the AI Studio window object, check if we need to prompt for a key
-  if (typeof window !== 'undefined' && (window as any).aistudio) {
-    const aistudio = (window as any).aistudio;
-    const hasKey = await aistudio.hasSelectedApiKey();
-    if (!hasKey && !apiKey) {
-      await aistudio.openSelectKey();
-      // After selection, the key should be injected
-      apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-    }
-  }
+export function getCustomApiKey(): string | null {
+  return localStorage.getItem('custom_gemini_api_key');
+}
 
+export function setCustomApiKey(key: string) {
+  localStorage.setItem('custom_gemini_api_key', key);
+  ai = new GoogleGenAI({ apiKey: key });
+}
+
+export async function initAI() {
+  let apiKey = getCustomApiKey() || process.env.GEMINI_API_KEY || process.env.API_KEY;
+  
   if (!apiKey) {
-    throw new Error("No Gemini API key found");
+    throw new Error("INVALID_API_KEY");
   }
   
   // Always recreate the instance to ensure it uses the most up-to-date key
@@ -108,30 +106,8 @@ export async function fetchAndCacheAudio(text: string, cacheKey: string): Promis
     return base64Audio;
   } catch (error: any) {
     const errorMessage = error.message || String(error);
-    if (errorMessage.includes("API key not valid") || errorMessage.includes("Requested entity was not found")) {
-      if (typeof window !== 'undefined' && (window as any).aistudio) {
-        console.warn("Invalid API key detected, prompting user to select a new key...");
-        await (window as any).aistudio.openSelectKey();
-        // Re-initialize AI with the new key
-        await initAI();
-        // Retry the request once
-        const retryResponse = await ai!.models.generateContent({
-          model: "gemini-2.5-flash-preview-tts",
-          contents: [{ parts: [{ text: `請用幼稚園老師親切、開心的語氣慢慢唸：${text}` }] }],
-          config: {
-            responseModalities: [Modality.AUDIO],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: 'Kore' },
-              },
-            },
-          },
-        });
-        const retryBase64Audio = retryResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (!retryBase64Audio) throw new Error("No audio generated on retry");
-        await saveToCache(cacheKey, retryBase64Audio);
-        return retryBase64Audio;
-      }
+    if (errorMessage.includes("API key not valid") || errorMessage.includes("Requested entity was not found") || errorMessage.includes("API_KEY_INVALID")) {
+      throw new Error("INVALID_API_KEY");
     }
     throw error;
   }
