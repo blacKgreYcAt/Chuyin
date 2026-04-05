@@ -62,37 +62,79 @@ export async function getCachedAudio(key: string): Promise<string | null> {
 }
 
 export async function initAI() {
-  if (!ai) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("No Gemini API key found");
+  let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  
+  // If we have access to the AI Studio window object, check if we need to prompt for a key
+  if (typeof window !== 'undefined' && (window as any).aistudio) {
+    const aistudio = (window as any).aistudio;
+    const hasKey = await aistudio.hasSelectedApiKey();
+    if (!hasKey && !apiKey) {
+      await aistudio.openSelectKey();
+      // After selection, the key should be injected
+      apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
     }
-    ai = new GoogleGenAI({ apiKey });
   }
+
+  if (!apiKey) {
+    throw new Error("No Gemini API key found");
+  }
+  
+  // Always recreate the instance to ensure it uses the most up-to-date key
+  ai = new GoogleGenAI({ apiKey });
 }
 
 export async function fetchAndCacheAudio(text: string, cacheKey: string): Promise<string> {
   await initAI();
   
-  const response = await ai!.models.generateContent({
-    model: "gemini-2.5-flash-preview-tts",
-    contents: [{ parts: [{ text: `請用幼稚園老師親切、開心的語氣慢慢唸：${text}` }] }],
-    config: {
-      responseModalities: [Modality.AUDIO],
-      speechConfig: {
-        voiceConfig: {
-          prebuiltVoiceConfig: { voiceName: 'Kore' },
+  try {
+    const response = await ai!.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: `請用幼稚園老師親切、開心的語氣慢慢唸：${text}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' },
+          },
         },
       },
-    },
-  });
+    });
 
-  const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!base64Audio) throw new Error("No audio generated");
+    const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!base64Audio) throw new Error("No audio generated");
 
-  await saveToCache(cacheKey, base64Audio);
-  
-  return base64Audio;
+    await saveToCache(cacheKey, base64Audio);
+    
+    return base64Audio;
+  } catch (error: any) {
+    const errorMessage = error.message || String(error);
+    if (errorMessage.includes("API key not valid") || errorMessage.includes("Requested entity was not found")) {
+      if (typeof window !== 'undefined' && (window as any).aistudio) {
+        console.warn("Invalid API key detected, prompting user to select a new key...");
+        await (window as any).aistudio.openSelectKey();
+        // Re-initialize AI with the new key
+        await initAI();
+        // Retry the request once
+        const retryResponse = await ai!.models.generateContent({
+          model: "gemini-2.5-flash-preview-tts",
+          contents: [{ parts: [{ text: `請用幼稚園老師親切、開心的語氣慢慢唸：${text}` }] }],
+          config: {
+            responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: 'Kore' },
+              },
+            },
+          },
+        });
+        const retryBase64Audio = retryResponse.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+        if (!retryBase64Audio) throw new Error("No audio generated on retry");
+        await saveToCache(cacheKey, retryBase64Audio);
+        return retryBase64Audio;
+      }
+    }
+    throw error;
+  }
 }
 
 export async function playBase64Audio(base64Audio: string): Promise<void> {
