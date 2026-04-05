@@ -30,19 +30,14 @@ export default function Learning({ gender, currentLessonIndex, onNext }: Props) 
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
-    // 1. Pronounce the Bopomofo symbol first
-    const symbolUtterance = new SpeechSynthesisUtterance(item.symbol);
-    symbolUtterance.lang = 'zh-TW';
-    symbolUtterance.rate = 0.7; // Slightly slower for clarity
+    // Use the ttsHint (a standard Chinese character with the exact same pronunciation)
+    // combined with the word, separated by a comma for a natural pause.
+    const text = `${item.ttsHint}，${item.word}`;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'zh-TW';
+    utterance.rate = 0.85; // slightly adjusted for natural flow
 
-    // 2. Pronounce the example word
-    const wordUtterance = new SpeechSynthesisUtterance(item.word);
-    wordUtterance.lang = 'zh-TW';
-    wordUtterance.rate = 0.8;
-
-    // Queue the utterances
-    window.speechSynthesis.speak(symbolUtterance);
-    window.speechSynthesis.speak(wordUtterance);
+    window.speechSynthesis.speak(utterance);
   };
 
   // Auto-play sound when entering the lesson
