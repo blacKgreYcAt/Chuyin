@@ -2,16 +2,18 @@ import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
-import { Medal, Star, CheckCircle2 } from 'lucide-react';
+import { Medal, Star, CheckCircle2, RefreshCw } from 'lucide-react';
 
 interface Props {
   gender: Gender;
   medals: number;
   completedLessons: number[];
+  hasMistakes: boolean;
   onSelectLesson: (index: number) => void;
+  onReview: () => void;
 }
 
-export default function Dashboard({ gender, medals, completedLessons, onSelectLesson }: Props) {
+export default function Dashboard({ gender, medals, completedLessons, hasMistakes, onSelectLesson, onReview }: Props) {
   const isGirl = gender === 'girl';
   
   const themeClasses = isGirl 
@@ -52,6 +54,18 @@ export default function Dashboard({ gender, medals, completedLessons, onSelectLe
       >
         <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <h2 className="text-2xl font-bold text-center drop-shadow-md">請選擇要學習的注音符號</h2>
+          
+          {hasMistakes && (
+            <button
+              onClick={onReview}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg transition-transform hover:scale-105 ${
+                isGirl ? 'bg-pink-500 text-white' : 'bg-yellow-500 text-yellow-900'
+              }`}
+            >
+              <RefreshCw size={18} />
+              複習易錯注音
+            </button>
+          )}
         </div>
         
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">

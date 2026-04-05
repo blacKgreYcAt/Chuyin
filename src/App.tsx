@@ -14,6 +14,7 @@ export default function App() {
     medals: 0,
     currentLessonIndex: 0,
     completedLessons: [],
+    mistakeCounts: {},
   });
 
   const handleGenderSelect = (gender: Gender) => {
@@ -32,6 +33,23 @@ export default function App() {
 
   const handleQuizCorrect = () => {
     setAppState('reward');
+  };
+
+  const handleMistake = () => {
+    setProgress(prev => {
+      const currentCount = prev.mistakeCounts?.[prev.currentLessonIndex] || 0;
+      return {
+        ...prev,
+        mistakeCounts: {
+          ...prev.mistakeCounts,
+          [prev.currentLessonIndex]: currentCount + 1,
+        }
+      };
+    });
+  };
+
+  const handleBackToHome = () => {
+    setAppState('dashboard');
   };
 
   const handleRewardContinue = () => {
@@ -59,6 +77,24 @@ export default function App() {
     setAppState('dashboard');
   };
 
+  const handleReview = () => {
+    // Find the lesson with the highest mistake count
+    const mistakes = progress.mistakeCounts || {};
+    let maxMistakes = 0;
+    let reviewIndex = -1;
+    
+    Object.entries(mistakes).forEach(([indexStr, count]) => {
+      if (count > maxMistakes) {
+        maxMistakes = count;
+        reviewIndex = parseInt(indexStr, 10);
+      }
+    });
+
+    if (reviewIndex !== -1) {
+      handleSelectLesson(reviewIndex);
+    }
+  };
+
   return (
     <div className="w-full min-h-screen overflow-hidden font-sans">
       {appState === 'selection' && (
@@ -71,6 +107,8 @@ export default function App() {
           medals={progress.medals}
           completedLessons={progress.completedLessons}
           onSelectLesson={handleSelectLesson}
+          hasMistakes={Object.keys(progress.mistakeCounts || {}).length > 0}
+          onReview={handleReview}
         />
       )}
 
@@ -79,6 +117,7 @@ export default function App() {
           gender={progress.gender}
           currentLessonIndex={progress.currentLessonIndex}
           onNext={handleLearningNext}
+          onBackToHome={handleBackToHome}
         />
       )}
 
@@ -87,6 +126,8 @@ export default function App() {
           gender={progress.gender}
           currentLessonIndex={progress.currentLessonIndex}
           onCorrect={handleQuizCorrect}
+          onMistake={handleMistake}
+          onBackToHome={handleBackToHome}
         />
       )}
 

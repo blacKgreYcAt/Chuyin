@@ -2,14 +2,17 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
+import { Home } from 'lucide-react';
 
 interface Props {
   gender: Gender;
   currentLessonIndex: number;
   onCorrect: () => void;
+  onMistake: () => void;
+  onBackToHome: () => void;
 }
 
-export default function Quiz({ gender, currentLessonIndex, onCorrect }: Props) {
+export default function Quiz({ gender, currentLessonIndex, onCorrect, onMistake, onBackToHome }: Props) {
   const isGirl = gender === 'girl';
   const targetItem = bopomofoData[currentLessonIndex];
   
@@ -36,8 +39,8 @@ export default function Quiz({ gender, currentLessonIndex, onCorrect }: Props) {
     } else {
       if (!wrongAnswers.includes(symbol)) {
         setWrongAnswers(prev => [...prev, symbol]);
+        onMistake();
       }
-      // Play error sound or shake animation
     }
   };
 
@@ -56,7 +59,19 @@ export default function Quiz({ gender, currentLessonIndex, onCorrect }: Props) {
   const wrongClasses = 'bg-red-900/50 border-red-500/50 opacity-50 cursor-not-allowed';
 
   return (
-    <div className={`min-h-screen flex flex-col items-center justify-center p-6 ${themeClasses}`}>
+    <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative ${themeClasses}`}>
+      
+      {/* Back to Home Button */}
+      <div className="absolute top-6 left-6 z-10">
+        <button
+          onClick={onBackToHome}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 text-white/80 hover:bg-black/40 transition-colors font-bold"
+        >
+          <Home size={20} />
+          回首頁
+        </button>
+      </div>
+
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}

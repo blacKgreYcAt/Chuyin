@@ -2,16 +2,18 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Gender } from '../types';
 import { bopomofoData } from '../data/bopomofo';
-import { ArrowRight, Volume2, Loader2 } from 'lucide-react';
+import { ArrowRight, Volume2, Loader2, Home } from 'lucide-react';
 import { playMdnAudio } from '../services/mdnAudio';
+import { playWordAudio } from '../services/wordAudio';
 
 interface Props {
   gender: Gender;
   currentLessonIndex: number;
   onNext: () => void;
+  onBackToHome: () => void;
 }
 
-export default function Learning({ gender, currentLessonIndex, onNext }: Props) {
+export default function Learning({ gender, currentLessonIndex, onNext, onBackToHome }: Props) {
   const isGirl = gender === 'girl';
   const item = bopomofoData[currentLessonIndex];
   const [isSpeakingSymbol, setIsSpeakingSymbol] = useState(false);
@@ -42,32 +44,15 @@ export default function Learning({ gender, currentLessonIndex, onNext }: Props) 
     }
   };
 
-  const playWordSound = () => {
+  const playWordSound = async () => {
     if (isSpeakingSymbol || isSpeakingWord) return;
     setIsSpeakingWord(true);
 
     try {
-      window.speechSynthesis.cancel();
-      const text = `${item.word}`;
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'zh-TW';
-      utterance.rate = 0.85;
-      
-      const voices = window.speechSynthesis.getVoices();
-      const bestVoice = voices.find(v => 
-        v.lang.includes('zh-TW') && (v.name.includes('Google') || v.name.includes('Premium') || v.name.includes('Mei-Jia'))
-      ) || voices.find(v => v.lang.includes('zh-TW')) || voices.find(v => v.lang.includes('zh'));
-      
-      if (bestVoice) {
-        utterance.voice = bestVoice;
-      }
-      
-      utterance.onend = () => setIsSpeakingWord(false);
-      utterance.onerror = () => setIsSpeakingWord(false);
-      
-      window.speechSynthesis.speak(utterance);
+      await playWordAudio(currentLessonIndex);
     } catch (e) {
       console.error(e);
+    } finally {
       setIsSpeakingWord(false);
     }
   };
@@ -75,13 +60,22 @@ export default function Learning({ gender, currentLessonIndex, onNext }: Props) 
   // Auto-play symbol sound when entering the lesson
   useEffect(() => {
     playSymbolSound();
-    return () => {
-      window.speechSynthesis.cancel();
-    };
   }, [item]);
 
   return (
     <div className={`min-h-screen flex flex-col items-center justify-center p-6 relative ${themeClasses}`}>
+      
+      {/* Back to Home Button */}
+      <div className="absolute top-6 left-6 z-10">
+        <button
+          onClick={onBackToHome}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/30 text-white/80 hover:bg-black/40 transition-colors font-bold"
+        >
+          <Home size={20} />
+          回首頁
+        </button>
+      </div>
+
       <motion.div 
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

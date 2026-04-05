@@ -6,4 +6,5 @@ export interface UserProgress {
   medals: number;
   currentLessonIndex: number;
   completedLessons: number[];
+  mistakeCounts?: Record<number, number>;
 }
